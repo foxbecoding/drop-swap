@@ -1,0 +1,28 @@
+export component AppButton inherits Rectangle{
+    in-out property <string> text;
+    in-out property <brush> backgroundColor;
+    callback clicked;
+    background: backgroundColor;
+    border-radius: 8px;
+    min-height: 24px;
+    Text {
+        text: text;
+        vertical-alignment: center;
+        horizontal-alignment: center;
+        font-size: 16px;
+        font-weight: 600;
+    }
+    states [
+        pressed when touch.pressed: {
+             root.opacity: 0.5;
+        }
+        hover when touch.has-hover: {
+            root.opacity: 0.8;
+        }
+    ]
+    touch := TouchArea {
+        clicked => {  }
+//        clicked => { debug(root.text) }
+        mouse-cursor: pointer;
+    }
+}

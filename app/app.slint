@@ -1,0 +1,357 @@
+import { AppTheme } from "utils/theming.slint";
+import { AppButton } from "components/AppButton.slint";
+import { Divider } from "components/Divider.slint";
+import { Button, ListView, ScrollView, VerticalBox, ScrollView, HorizontalBox, ProgressIndicator } from "std-widgets.slint";
+
+export struct TokenDrop {
+    mint: string,
+    solscan: string,
+    dexscreener: string,
+    birdeye: string,
+    raydium: string,
+    jupiter: string,
+}
+
+export component App inherits Window {
+    preferred-width: 1200px;
+    preferred-height: 800px;
+    min-width: 940px;
+    min-height: 470px;
+    max-height: 1400px;
+    background: #212121;
+    no-frame: false;
+    always-on-top: false;
+    title: "Drop Trader";
+    icon: @image-url("assets/defi-fox-logo-v1.png");
+
+    in property <int> counter: 1;
+
+    callback start_btn_clicked <=> start.clicked;
+    callback stop_btn_clicked <=> stop.clicked;
+    callback open_link;
+
+    in-out property <string> url_link;
+
+
+    in-out property <[TokenDrop]> token_drops;
+    in-out property <[TokenDrop]> drops: [
+        {
+            mint: "mint1",
+            solscan: "string",
+            dexscreener: "string",
+            birdeye: "string",
+            raydium: "https://raydium.io/swap/?inputMint=sol&outputMint=DQPq9oRZm5tRRQKU7nGNd5kngDgr1RdaWVeFjafypump",
+            jupiter: "string",
+        },
+        {
+            mint: "min2t",
+            solscan: "string",
+            dexscreener: "string",
+            birdeye: "string",
+            raydium: "https://raydium.io/swap/?inputMint=sol&outputMint=DQPq9oRZm5tRRQKU7nGNd5kngDgr1RdaWVeFjafypump",
+            jupiter: "string",
+        },
+        {
+            mint: "mint3",
+            solscan: "string",
+            dexscreener: "string",
+            birdeye: "string",
+            raydium: "https://raydium.io/swap/?inputMint=sol&outputMint=DQPq9oRZm5tRRQKU7nGNd5kngDgr1RdaWVeFjafypump",
+            jupiter: "string",
+        },
+    ];
+
+
+
+    HorizontalLayout {
+        spacing: 0px;
+        VerticalBox {
+            width: 240px;
+            vertical-stretch: 1;
+            horizontal-stretch: 1;
+            spacing: 5px;
+
+            VerticalBox {
+                height: 100px;
+                start := Button { primary: true; text: "Start";  }
+                stop := Button { primary: false; text: "Stop"; }
+//                AppButton { backgroundColor: AppTheme.primary; text: "Start" + counter; }
+//                AppButton { backgroundColor: AppTheme.surface; text: "Stop"; }
+            }
+
+        }
+        HorizontalLayout {
+            Rectangle {
+                vertical-stretch: 1;
+                horizontal-stretch: 1;
+                background: AppTheme.background;
+                border-top-left-radius: 12px;
+
+                ScrollView  {
+                    VerticalBox {
+                        spacing: 18px;
+                        padding-left: 18px;
+                        padding-right: 18px;
+
+                        HorizontalLayout {
+                            height: 30px;
+                            VerticalLayout {
+                                Text {
+                                    text: "Scanning Solana...";
+                                    font-size: 14px;
+                                }
+                                ProgressIndicator {
+                                    indeterminate: true;
+                                    height: 5px;
+                                }
+                            }
+                        }
+
+                        HorizontalLayout {
+                            height: 40px;
+                            Text {
+                                text: "PumpFun Drops Feed";
+                                font-weight: 800;
+                                font-size: 28px;
+                            }
+                        }
+
+
+                        for token[index] in token_drops: Rectangle {
+                           height: 340px;
+                           width: 600px;
+                           background: AppTheme.surface;
+                           border-radius: 9px;
+
+                           HorizontalLayout {
+                               spacing: 8px;
+                               padding: 8px;
+
+                               VerticalLayout {
+                                   Text {
+                                       font-size: 14px;
+                                       font-weight: 800;
+                                       vertical-alignment: top;
+                                       horizontal-alignment: left;
+                                       text:  "Mint: \{token.mint}";
+                                       height: 30px;
+                                   }
+                                   
+                                   HorizontalLayout {
+                                       height: 100px;
+                                       VerticalLayout {
+                                            width: 580px;
+                                            Text {
+                                               text: "Swap Token";
+                                               font-weight: 800;
+                                               font-size: 16px;
+                                               height: 30px;
+                                          }
+                                          Divider { height: 2px; }
+                                          HorizontalLayout {
+                                            height: 60px;
+                                            spacing: 8px;
+                                            padding-top: 8px;
+                                            Rectangle {
+                                                  border-radius: 20px;
+                                                  background: #121212;
+                                                  width: 40px;
+                                                  height: 40px;
+                                                  clip: true;
+                                                  padding-top: 4px;
+                                                  Image {
+                                                      vertical-alignment: center;
+                                                      source: @image-url("assets/raydium-logo.jpg");
+                                                      image-fit: cover;
+                                                      width: 40px;
+                                                  }
+
+                                                  states [
+                                                      pressed when raydium_btn.pressed: {
+                                                           opacity: 0.5;
+                                                      }
+                                                      hover when raydium_btn.has-hover: {
+                                                          opacity: 0.8;
+                                                      }
+                                                  ]
+
+                                                  raydium_btn := TouchArea {
+                                                    mouse-cursor: pointer;
+                                                    clicked => {
+                                                        root.url_link = token.raydium;
+                                                        root.open_link();
+                                                    }
+                                                  }
+                                              }
+
+                                              Rectangle {
+                                                border-radius: 20px;
+                                                background: #121212;
+                                                width: 40px;
+                                                height: 40px;
+                                                clip: true;
+                                                padding-top: 4px;
+                                                Image {
+                                                    vertical-alignment: center;
+                                                    source: @image-url("assets/jupiter-logo.png");
+                                                    image-fit: cover;
+                                                    width: 40px;
+                                                }
+
+                                                states [
+                                                  pressed when jupiter_btn.pressed: {
+                                                       opacity: 0.5;
+                                                  }
+                                                  hover when jupiter_btn.has-hover: {
+                                                      opacity: 0.8;
+                                                  }
+                                                ]
+
+                                                jupiter_btn := TouchArea {
+                                                    mouse-cursor: pointer;
+                                                    clicked => {
+                                                        root.url_link = token.jupiter;
+                                                        root.open_link();
+                                                    }
+                                                }
+                                            }
+                                          }
+                                       }
+                                   }
+                    
+                                   HorizontalLayout {
+                                      height: 100px;
+                                      VerticalLayout {
+                                           width: 580px;
+                                           Text {
+                                              text: "View Chart";
+                                              font-weight: 800;
+                                              font-size: 16px;
+                                              height: 30px;
+                                         }
+                                         Divider { height: 2px; }
+                                         HorizontalLayout {
+                                           height: 60px;
+                                           spacing: 8px;
+                                           padding-top: 8px;
+                                           Rectangle {
+                                                 border-radius: 20px;
+                                                 background: #121212;
+                                                 width: 40px;
+                                                 height: 40px;
+                                                 clip: true;
+                                                 padding-top: 4px;
+                                                 Image {
+                                                     vertical-alignment: center;
+                                                     source: @image-url("assets/dexscreener-logo.png");
+                                                     image-fit: cover;
+                                                     width: 40px;
+                                                 }
+
+                                                 states [
+                                                   pressed when dexscreener_btn.pressed: {
+                                                        opacity: 0.5;
+                                                   }
+                                                   hover when dexscreener_btn.has-hover: {
+                                                       opacity: 0.8;
+                                                   }
+                                                 ]
+
+                                                 dexscreener_btn := TouchArea {
+                                                     mouse-cursor: pointer;
+                                                     clicked => {
+                                                         root.url_link = token.dexscreener;
+                                                         root.open_link();
+                                                     }
+                                                 }
+                                             }
+
+                                             Rectangle {
+                                               border-radius: 20px;
+                                               background: #121212;
+                                               width: 40px;
+                                               height: 40px;
+                                               clip: true;
+                                               padding-top: 4px;
+                                               Image {
+                                                   vertical-alignment: center;
+                                                   source: @image-url("assets/birdeye-logo.png");
+                                                   image-fit: cover;
+                                                   width: 40px;
+                                               }
+                                               states [
+                                                  pressed when birdeye_btn.pressed: {
+                                                       opacity: 0.5;
+                                                  }
+                                                  hover when birdeye_btn.has-hover: {
+                                                      opacity: 0.8;
+                                                  }
+                                               ]
+                                               birdeye_btn := TouchArea {
+                                                mouse-cursor: pointer;
+                                                 clicked => {
+                                                     root.url_link = token.birdeye;
+                                                     root.open_link();
+                                                 }
+                                               }
+                                            }
+                                         }
+                                      }
+                                  }
+                                   HorizontalLayout {
+                                        height: 100px;
+                                        VerticalLayout {
+                                             width: 580px;
+                                             Text {
+                                                text: "View Transaction";
+                                                font-weight: 800;
+                                                font-size: 16px;
+                                                height: 30px;
+                                           }
+                                           Divider { height: 2px; }
+                                           HorizontalLayout {
+                                             height: 60px;
+                                             spacing: 8px;
+                                             padding-top: 8px;
+                                             Rectangle {
+                                                   border-radius: 20px;
+                                                   background: #121212;
+                                                   width: 40px;
+                                                   height: 40px;
+                                                   clip: true;
+                                                   padding-top: 4px;
+                                                   Image {
+                                                       vertical-alignment: center;
+                                                       source: @image-url("assets/solscan-logo.png");
+                                                       image-fit: cover;
+                                                       width: 40px;
+                                                   }
+
+                                                   states [
+                                                     pressed when solscan_btn.pressed: {
+                                                          opacity: 0.5;
+                                                     }
+                                                     hover when solscan_btn.has-hover: {
+                                                         opacity: 0.8;
+                                                     }
+                                                   ]
+                                                   solscan_btn := TouchArea {
+                                                        mouse-cursor: pointer;
+                                                        clicked => {
+                                                            root.url_link = token.solscan;
+                                                            root.open_link();
+                                                        }
+                                                   }
+                                               }
+                                           }
+                                        }
+                                    }
+                               }
+                           }
+                       }
+                    }
+                }
+            }
+        }
+    }
+}
