@@ -10,6 +10,9 @@ export struct TokenDrop {
     birdeye: string,
     raydium: string,
     jupiter: string,
+    name: string,
+    symbol: string,
+    uri: string
 }
 
 export component App inherits Window {
@@ -21,7 +24,7 @@ export component App inherits Window {
     background: #212121;
     no-frame: false;
     always-on-top: false;
-    title: "Drop Trader";
+    title: "Drop Swap";
     icon: @image-url("assets/defi-fox-logo-v1.png");
 
     in property <int> counter: 1;
@@ -42,6 +45,9 @@ export component App inherits Window {
             birdeye: "string",
             raydium: "https://raydium.io/swap/?inputMint=sol&outputMint=DQPq9oRZm5tRRQKU7nGNd5kngDgr1RdaWVeFjafypump",
             jupiter: "string",
+            name: "Wrapped Sol",
+            symbol: "WSOL",
+            uri: "string"
         },
         {
             mint: "min2t",
@@ -50,6 +56,9 @@ export component App inherits Window {
             birdeye: "string",
             raydium: "https://raydium.io/swap/?inputMint=sol&outputMint=DQPq9oRZm5tRRQKU7nGNd5kngDgr1RdaWVeFjafypump",
             jupiter: "string",
+            name: "Wrapped Sol",
+            symbol: "WSOL",
+            uri: "string"
         },
         {
             mint: "mint3",
@@ -58,6 +67,9 @@ export component App inherits Window {
             birdeye: "string",
             raydium: "https://raydium.io/swap/?inputMint=sol&outputMint=DQPq9oRZm5tRRQKU7nGNd5kngDgr1RdaWVeFjafypump",
             jupiter: "string",
+            name: "Wrapped Sol",
+            symbol: "WSOL",
+            uri: "string"
         },
     ];
 
@@ -118,29 +130,30 @@ export component App inherits Window {
 
 
                         for token[index] in token_drops: Rectangle {
-                           height: 340px;
+                           height: 360px;
                            width: 600px;
                            background: AppTheme.surface;
                            border-radius: 9px;
 
                            HorizontalLayout {
                                spacing: 8px;
-                               padding: 8px;
+                               width: 560px;
+                               height: 340px;
 
                                VerticalLayout {
                                    Text {
-                                       font-size: 14px;
+                                       font-size: 20px;
                                        font-weight: 800;
                                        vertical-alignment: top;
                                        horizontal-alignment: left;
-                                       text:  "Mint: \{token.mint}";
-                                       height: 30px;
+                                       text:  "\{token.name} (\{token.symbol})";
+                                       height: 45px;
                                    }
                                    
                                    HorizontalLayout {
                                        height: 100px;
                                        VerticalLayout {
-                                            width: 580px;
+                                            width: 540px;
                                             Text {
                                                text: "Swap Token";
                                                font-weight: 800;
@@ -222,7 +235,7 @@ export component App inherits Window {
                                    HorizontalLayout {
                                       height: 100px;
                                       VerticalLayout {
-                                           width: 580px;
+                                           width: 540px;
                                            Text {
                                               text: "View Chart";
                                               font-weight: 800;
@@ -301,7 +314,7 @@ export component App inherits Window {
                                    HorizontalLayout {
                                         height: 100px;
                                         VerticalLayout {
-                                             width: 580px;
+                                             width: 540px;
                                              Text {
                                                 text: "View Transaction";
                                                 font-weight: 800;

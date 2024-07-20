@@ -10,6 +10,7 @@ use reqwest::Client;
 use serde_json::{json, Value};
 use tokio_tungstenite::{connect_async, MaybeTlsStream, tungstenite, tungstenite::protocol::Message, WebSocketStream};
 use solana_sdk::msg;
+use solana_sdk::pubkey::Pubkey;
 use solana_sdk::signature::{
     // Keypair,
     Signature
@@ -17,7 +18,7 @@ use solana_sdk::signature::{
 use solana_rpc_client::{
     http_sender::HttpSender,
     rpc_sender::RpcSender,
-    // rpc_client::RpcClient,
+    rpc_client::RpcClient,
 };
 use solana_rpc_client_api::request::RpcRequest;
 
@@ -26,7 +27,7 @@ use tokio::net::TcpStream;
 use tokio::sync::{mpsc, Mutex};
 
 use slint_generatedApp::TokenDrop as SlintTokenDrop;
-
+use mpl_token_metadata::accounts::Metadata;
 
 slint::include_modules!();
 // fn env_var(var: &str) -> String {
@@ -65,15 +66,22 @@ pub async fn fetch_raydium_accounts(tx_id: &Signature, http_sender: &HttpSender)
         msg!("dexscreener: https://dexscreener.com/solana/{}", account);
         msg!("Raydium: https://raydium.io/swap/?inputMint=sol&outputMint={}", account);
         msg!("Jupiter: https://jup.ag/swap/SOL-{}", account);
+        msg!("TX_RSP: {:#?}", transaction);
 
+        let token_metadata = get_token_metadata(account);
+        msg!("{:#?}", token_metadata.clone());
         let token_drop = SlintTokenDrop {
             mint: SharedString::from(account),
             solscan: SharedString::from(format!("https://solscan.io/tx/{}", tx_id).to_string()),
-            birdeye: SharedString::from(format!("https://birdeye.so/token/{}?chain=solana", account.clone()).to_string()),
-            dexscreener: SharedString::from(format!("https://dexscreener.com/solana/{}", account.clone())),
-            raydium: SharedString::from( format!("https://raydium.io/swap/?inputMint=sol&outputMint={}", account.clone()).to_string()),
-            jupiter: SharedString::from( format!("https://jup.ag/swap/SOL-{}", account.clone()).to_string()),
+            birdeye: SharedString::from(format!("https://birdeye.so/token/{}?chain=solana", account)),
+            dexscreener: SharedString::from(format!("https://dexscreener.com/solana/{}", account)),
+            raydium: SharedString::from( format!("https://raydium.io/swap/?inputMint=sol&outputMint={}", account)),
+            jupiter: SharedString::from( format!("https://jup.ag/swap/SOL-{}", account)),
+            name: SharedString::from(token_metadata.name.replace("\0", "")),
+            symbol: SharedString::from(token_metadata.symbol.replace("\0", "")),
+            uri: SharedString::from(token_metadata.uri.replace("\0", "")),
         };
+
         // msg!("ACCOUNTS: {:#?}", accounts.clone());
         // msg!("TX_RSP: {:#?}", transaction);
         // let pool_info_accounts = raydium_swap::pool_info(accounts);
@@ -259,6 +267,17 @@ async fn process_message(
             }
         }
     }
+}
+
+fn get_token_metadata(mint: &str) -> Metadata {
+    let key = Pubkey::from_str(mint).unwrap();
+    let rpc_endpoint = "https://shy-delicate-diagram.solana-mainnet.quiknode.pro/6b981c085b0c5b05322894ed43bd9dd2e9fccac4/".to_string();
+    let client = RpcClient::new(rpc_endpoint);
+
+    let (parsed_key,  _) = Metadata::find_pda(&key);
+    //TODO fix unwrap to match
+    let parsed_account_data = client.get_account_data(&parsed_key).unwrap();
+    Metadata::from_bytes(&parsed_account_data).unwrap()
 }
 
 #[tokio::main]
