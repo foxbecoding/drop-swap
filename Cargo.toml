@@ -20,16 +20,18 @@ hex = "0.4.2"
 dotenv = "0.15.0"
 reqwest = "0.11.27"
 
-solana-program = "2.0.2"
-solana-sdk = "2.0.2"
+solana-program = "1.18.18"
+solana-sdk = "1.18.18"
 spl-token = "6.0.0"
 
-solana-rpc-client-api = "2.0.2"
-solana-rpc-client = "2.0.2"
+solana-rpc-client-api = "1.18.18"
+solana-rpc-client = "1.18.18"
+solana-account-decoder = "1.18.18"
 borsh = "1.5.1"
 slint = "1.6.0"
 open = "5.3.0"
-mpl-token-metadata = { version = "4.1.2", features = ["serde"]}
+#mpl-token-metadata = { version = "4.1.2", features = ["serde"]}
+mpl-token-metadata = { version = "4.1.2"}
 #spl-associated-token-account = "3.0.2"
 #solana-transaction-status = "2.0.2"
 
