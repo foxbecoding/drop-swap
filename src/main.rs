@@ -120,6 +120,7 @@ pub async fn fetch_raydium_accounts(tx_id: &Signature, http_sender: &HttpSender)
             name: SharedString::from(token_metadata.name.replace("\0", "")),
             symbol: SharedString::from(token_metadata.symbol.replace("\0", "")),
             uri: SharedString::from(token_metadata.uri.replace("\0", "")),
+            is_pumpfun: account_keys.contains(&pump_fun_lp)
         };
 
         return Some(token_drop);
