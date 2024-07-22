@@ -10,6 +10,7 @@ use reqwest::Client;
 use serde_json::{json, Value};
 use tokio_tungstenite::{connect_async, MaybeTlsStream, tungstenite, tungstenite::protocol::Message, WebSocketStream};
 use solana_sdk::msg;
+use solana_sdk::pubkey::Pubkey;
 use solana_sdk::signature::{
     // Keypair,
     Signature
@@ -17,7 +18,7 @@ use solana_sdk::signature::{
 use solana_rpc_client::{
     http_sender::HttpSender,
     rpc_sender::RpcSender,
-    // rpc_client::RpcClient,
+    rpc_client::RpcClient,
 };
 use solana_rpc_client_api::request::RpcRequest;
 
@@ -26,12 +27,26 @@ use tokio::net::TcpStream;
 use tokio::sync::{mpsc, Mutex};
 
 use slint_generatedApp::TokenDrop as SlintTokenDrop;
-
+use mpl_token_metadata::accounts::Metadata;
 
 slint::include_modules!();
+
+
 // fn env_var(var: &str) -> String {
 //     env::var(&var).expect(&format!("{} is not set", var))
 // }
+
+fn get_token_metadata(mint: &str) -> Metadata {
+    let key = Pubkey::from_str(mint).unwrap();
+    let rpc_endpoint = "https://shy-delicate-diagram.solana-mainnet.quiknode.pro/6b981c085b0c5b05322894ed43bd9dd2e9fccac4/".to_string();
+    let client = RpcClient::new(rpc_endpoint);
+
+    let (parsed_key,  _) = Metadata::find_pda(&key);
+    //TODO fix unwrap to match
+    let parsed_account_data = client.get_account_data(&parsed_key).unwrap();
+    Metadata::from_bytes(&parsed_account_data).unwrap()
+}
+
 
 // Method to fetch raydium accounts
 pub async fn fetch_raydium_accounts(tx_id: &Signature, http_sender: &HttpSender) -> Option<SlintTokenDrop> {
@@ -46,38 +61,68 @@ pub async fn fetch_raydium_accounts(tx_id: &Signature, http_sender: &HttpSender)
     ]);
 
     let transaction = http_sender.send(RpcRequest::GetTransaction, params).await.expect("Client Failed");
-    let accounts_json = transaction
-        .get("transaction").expect("No transactions")
-        .get("message").expect("No Messages")
-        .get("accountKeys").expect("No accounts found");
 
-    let accounts: Vec<String> = accounts_json
+    let tx_msg = transaction
+        .get("transaction").expect("No transactions")
+        .get("message").expect("No Messages");
+
+    // Get all account keys
+    let account_keys: Vec<String> = tx_msg
+        .get("accountKeys").expect("No accounts found")
         .as_array().expect("Cannot convert to array")
         .iter()
-        .map(|json| json.as_str().expect("Cannot convert to string").to_owned())
+        .map(|key| key.as_str().unwrap().to_owned())
         .collect();
 
+    // get instructions message instructions
+    let tx_ins = tx_msg.get("instructions").expect("No instructions")
+        .as_array().expect("Cannot convert to array");
 
-    if accounts.contains(&pump_fun_lp) {
-        let account = &accounts[19];
-        msg!("solscan: https://solscan.io/tx/{}", tx_id);
-        msg!("birdeye: https://birdeye.so/token/{}?chain=solana", account);
-        msg!("dexscreener: https://dexscreener.com/solana/{}", account);
-        msg!("Raydium: https://raydium.io/swap/?inputMint=sol&outputMint={}", account);
-        msg!("Jupiter: https://jup.ag/swap/SOL-{}", account);
 
+    // loop instruction and find the one that has Raydium's program key
+    let mut mint_key = "".to_string();
+    for ins in tx_ins {
+        let raydium_program_id = "675kPX9MHTjS2zt1qfr1NYHuzeLXfQM9H24wFSUt1Mp8".to_string();
+        let program_id_index = ins.get("programIdIndex").unwrap().as_u64().unwrap() as usize;
+        let program_id = account_keys[program_id_index].clone();
+
+        if raydium_program_id == program_id {
+            let (key_a_index, key_b_index) = (8usize, 9usize);
+            let ins_accounts: Vec<u64> = ins.get("accounts")
+                .unwrap()
+                .as_array()
+                .expect("Cannot convert to array")
+                .iter()
+                .map(|json| json.as_u64().expect("Cannot convert to string").to_owned())
+                .collect();
+
+            let mint_account_index = ins_accounts[key_a_index] as usize;
+            mint_key = account_keys[mint_account_index].clone();
+            if mint_key == "So11111111111111111111111111111111111111112" {
+                let mint_account_index = ins_accounts[key_b_index] as usize;
+                mint_key = account_keys[mint_account_index].clone();
+            }
+            break;
+        }
+    }
+
+    // Set token drop data
+    if !mint_key.is_empty() {
+        let account = mint_key.as_str();
+        let token_metadata = get_token_metadata(account);
         let token_drop = SlintTokenDrop {
             mint: SharedString::from(account),
             solscan: SharedString::from(format!("https://solscan.io/tx/{}", tx_id).to_string()),
-            birdeye: SharedString::from(format!("https://birdeye.so/token/{}?chain=solana", account.clone()).to_string()),
-            dexscreener: SharedString::from(format!("https://dexscreener.com/solana/{}", account.clone())),
-            raydium: SharedString::from( format!("https://raydium.io/swap/?inputMint=sol&outputMint={}", account.clone()).to_string()),
-            jupiter: SharedString::from( format!("https://jup.ag/swap/SOL-{}", account.clone()).to_string()),
+            birdeye: SharedString::from(format!("https://birdeye.so/token/{}?chain=solana", account)),
+            dexscreener: SharedString::from(format!("https://dexscreener.com/solana/{}", account)),
+            raydium: SharedString::from( format!("https://raydium.io/swap/?inputMint=sol&outputMint={}", account)),
+            jupiter: SharedString::from( format!("https://jup.ag/swap/SOL-{}", account)),
+            name: SharedString::from(token_metadata.name.replace("\0", "")),
+            symbol: SharedString::from(token_metadata.symbol.replace("\0", "")),
+            uri: SharedString::from(token_metadata.uri.replace("\0", "")),
+            is_pumpfun: account_keys.contains(&pump_fun_lp)
         };
-        // msg!("ACCOUNTS: {:#?}", accounts.clone());
-        // msg!("TX_RSP: {:#?}", transaction);
-        // let pool_info_accounts = raydium_swap::pool_info(accounts);
-        // msg!("ACCOUNTS: {:#?}", pool_info_accounts);
+
         return Some(token_drop);
     }
     return None;
@@ -261,8 +306,20 @@ async fn process_message(
     }
 }
 
+
 #[tokio::main]
 async fn main() {
+    // let rpc_endpoint = "https://shy-delicate-diagram.solana-mainnet.quiknode.pro/6b981c085b0c5b05322894ed43bd9dd2e9fccac4/".to_string();
+    // // let rpc_endpoint_wss = env_var("RPC_ENDPOINT_WSS");
+    // let rpc_endpoint_wss = "wss://shy-delicate-diagram.solana-mainnet.quiknode.pro/6b981c085b0c5b05322894ed43bd9dd2e9fccac4/".to_string();
+    // let new_client = Client::new();
+    //
+    //
+    // let http_sender = HttpSender::new_with_client(rpc_endpoint, new_client);
+    //
+    // let sig = Signature::from_str("23MEk1swWhJXSsqfHYXFMJR2xKQhzMwVhvA1GjBKF1UVoFQByw33Eb2fbCtsRpz4qNuDxsKb2Wx6trcbmiKJgxH1");
+    // fetch_raydium_accounts(&sig.unwrap(), &http_sender).await;
+
     let mut watcher = PumpFunWatcher::new();
     watcher.start().await;
     watcher.app.on_open_link(move || {
