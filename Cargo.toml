@@ -32,6 +32,8 @@ slint = "1.6.0"
 open = "5.3.0"
 #mpl-token-metadata = { version = "4.1.2", features = ["serde"]}
 mpl-token-metadata = { version = "4.1.2"}
+image = "0.23.14"
+mime = "0.3.17"
 #spl-associated-token-account = "3.0.2"
 #solana-transaction-status = "2.0.2"
 

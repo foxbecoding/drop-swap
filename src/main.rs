@@ -1,8 +1,11 @@
 // #![windows_subsystem = "windows"]
 
 use futures_util::{SinkExt, StreamExt};
-use std::env;
+use std::{env, path};
+use std::error::Error;
 use std::rc::Rc;
+use serde::{Deserialize, Serialize};
+use serde_json::to_string;
 use dotenv::dotenv;
 use std::str::FromStr;
 use std::sync::Arc;
@@ -22,12 +25,17 @@ use solana_rpc_client::{
 };
 use solana_rpc_client_api::request::RpcRequest;
 
-use slint::{SharedString, ModelRc, VecModel, Weak};
+use slint::{SharedString, ModelRc, VecModel, Weak, SharedPixelBuffer, Rgba8Pixel, Image};
 use tokio::net::TcpStream;
 use tokio::sync::{mpsc, Mutex};
 
 use slint_generatedApp::TokenDrop as SlintTokenDrop;
+use slint_generatedApp::FeedTokenDrop as SlintFeedTokenDrop;
 use mpl_token_metadata::accounts::Metadata;
+use url::Url;
+
+use image::{RgbaImage, ImageFormat};
+use mime::Mime;
 
 slint::include_modules!();
 
@@ -35,6 +43,88 @@ slint::include_modules!();
 // fn env_var(var: &str) -> String {
 //     env::var(&var).expect(&format!("{} is not set", var))
 // }
+
+#[derive(Serialize, Deserialize, Debug)]
+pub struct TokenCreator {
+    pub name: Option<String>,
+    pub site: Option<String>,
+}
+
+#[derive(Serialize, Deserialize, Debug)]
+pub struct TokenExtensions {
+    pub website: Option<String>,
+    pub twitter: Option<String>,
+    pub telegram: Option<String>,
+}
+
+#[derive(Serialize, Deserialize, Debug)]
+pub struct TokenData {
+    pub name: Option<String>,
+    pub symbol: Option<String>,
+    pub image: Option<String>,
+    pub description: Option<String>,
+    pub extensions: Option<TokenExtensions>,
+    pub tags: Option<Vec<String>>,
+    pub creator: Option<TokenCreator>,
+    #[serde(rename = "createdOn")]
+    pub created_on: Option<String>
+}
+
+impl TokenData {
+    async fn get_token_image(&self) -> Option<Image> {
+        let default_file_path = "app/assets/token-images/default.png"; // default path
+        let url = Url::parse(self.image.as_ref().unwrap()).unwrap();
+        // Send a GET request and check the response status before continuing
+        let response = reqwest::get(url.as_str()).await.unwrap();
+        if response.status() != 200 {
+            msg!("NO IMAGE");
+        }
+
+        let content_type = response.headers().get(reqwest::header::CONTENT_TYPE)
+            .and_then(|value| value.to_str().ok())
+            .and_then(|value| value.parse::<Mime>().ok());
+
+        let image_format = match content_type {
+            Some(mime) => match mime.type_().as_str() {
+                "image" => match mime.subtype().as_str() {
+                    "png" => Some(ImageFormat::Png),
+                    "jpeg" => Some(ImageFormat::Jpeg),
+                    "jpg" => Some(ImageFormat::Jpeg),
+                    "gif" => Some(ImageFormat::Gif),
+                    "bmp" => Some(ImageFormat::Bmp),
+                    "webp" => Some(ImageFormat::WebP),
+                    "ico" => Some(ImageFormat::Ico),
+                    "tiff" => Some(ImageFormat::Tiff),
+                    _ => None,
+                },
+                _ => return None,
+            },
+            _ => return None,
+        };
+
+        // Download and save the image
+        let bytes = response.bytes().await.unwrap();
+        let img = image::load_from_memory_with_format(&bytes, image_format.unwrap()).unwrap().to_rgba8();
+
+        let buffer = SharedPixelBuffer::<Rgba8Pixel>::clone_from_slice(
+            img.as_raw(),
+            img.width(),
+            img.height(),
+        );
+        Some(Image::from_rgba8(buffer))
+        // msg!("Image Size: {:#?}x{}", img.pixels(), img.height());
+
+        // msg!("BYTES: {:#?}", bytes);
+    }
+}
+
+
+pub async fn get_token_data(uri: &str) -> TokenData {
+    let response = reqwest::get(uri).await.unwrap();
+    let text = response.text().await.unwrap();
+    let data: TokenData = serde_json::from_str(&text).expect("Failed to parse JSON");
+    data
+}
 
 fn get_token_metadata(mint: &str) -> Metadata {
     let key = Pubkey::from_str(mint).unwrap();
@@ -44,7 +134,8 @@ fn get_token_metadata(mint: &str) -> Metadata {
     let (parsed_key,  _) = Metadata::find_pda(&key);
     //TODO fix unwrap to match
     let parsed_account_data = client.get_account_data(&parsed_key).unwrap();
-    Metadata::from_bytes(&parsed_account_data).unwrap()
+    let metadata = Metadata::from_bytes(&parsed_account_data).unwrap();
+    metadata
 }
 
 
@@ -110,6 +201,10 @@ pub async fn fetch_raydium_accounts(tx_id: &Signature, http_sender: &HttpSender)
     if !mint_key.is_empty() {
         let account = mint_key.as_str();
         let token_metadata = get_token_metadata(account);
+        let default_image_path = std::path::Path::new("app/assets/default.png");
+        let default_image = slint::Image::load_from_path(default_image_path).unwrap();
+
+        // msg!("TD: {:#?}", td);
         let token_drop = SlintTokenDrop {
             mint: SharedString::from(account),
             solscan: SharedString::from(format!("https://solscan.io/tx/{}", tx_id).to_string()),
@@ -120,7 +215,7 @@ pub async fn fetch_raydium_accounts(tx_id: &Signature, http_sender: &HttpSender)
             name: SharedString::from(token_metadata.name.replace("\0", "")),
             symbol: SharedString::from(token_metadata.symbol.replace("\0", "")),
             uri: SharedString::from(token_metadata.uri.replace("\0", "")),
-            is_pumpfun: account_keys.contains(&pump_fun_lp)
+            is_pumpfun: account_keys.contains(&pump_fun_lp),
         };
 
         return Some(token_drop);
@@ -133,6 +228,7 @@ pub struct PumpFunWatcher {
     pub token_drops_recv: Option<mpsc::Receiver<SlintTokenDrop>>,
     is_running: Arc<Mutex<bool>>,
     pub token_drops: Arc<Mutex<Vec<SlintTokenDrop>>>,
+    pub feed_token_drops: Arc<Mutex<Vec<SlintFeedTokenDrop>>>,
     tx_stream: Option<futures_util::stream::SplitSink<WebSocketStream<MaybeTlsStream<TcpStream>>, Message>>,
     pub app: App,
     pub weak_app: Weak<App>,
@@ -147,6 +243,7 @@ impl PumpFunWatcher{
             token_drops_recv: None,
             is_running: Arc::new(Mutex::new(false)),
             token_drops: Arc::new(Mutex::new(Vec::new())),
+            feed_token_drops: Arc::new(Mutex::new(Vec::new())),
             tx_stream: None,
             app,
             weak_app
@@ -163,21 +260,47 @@ impl PumpFunWatcher{
         // self.token_drops_recv = Some(token_drops_receiver);
 
         let token_drops_arc = Arc::clone(&self.token_drops);
+        let feed_token_drops_arc = Arc::clone(&self.feed_token_drops);
 
         let weak_app = self.weak_app.clone();
         let _res = slint::spawn_local(async move {
             while let Some(token_drop) = token_drops_receiver.recv().await {
                 let weak_app = weak_app.unwrap();
 
-                token_drops_arc.lock().await.push(token_drop);
-                let token_drops = token_drops_arc.lock().await.clone();
-                // Todo check prevent duplicates
-                let mut unique_token_drops = get_unique_token_drops(token_drops).await;
-                unique_token_drops.reverse();
-                // msg!("DROPPER:  {:#?}", token_drops.clone().len());
-                let the_model : Rc<VecModel<SlintTokenDrop>> = Rc::new(VecModel::from(unique_token_drops));
+                let token_data = get_token_data(token_drop.uri.as_str()).await;
+                let token_image = token_data.get_token_image().await;
+
+                let token_default_img_path = path::Path::new("app/assets/default.png");
+                let mut token_drop_image = slint::Image::load_from_path(token_default_img_path).unwrap();
+
+                if token_image.is_some() {
+                    token_drop_image = token_image.unwrap();
+                }
+
+                // set feed drops
+                let feed_token_drop = SlintFeedTokenDrop {
+                    mint: token_drop.mint,
+                    solscan: token_drop.solscan,
+                    birdeye: token_drop.birdeye,
+                    dexscreener: token_drop.dexscreener,
+                    raydium: token_drop.raydium,
+                    jupiter: token_drop.jupiter,
+                    name: token_drop.name,
+                    symbol: token_drop.symbol,
+                    uri: token_drop.uri,
+                    is_pumpfun: token_drop.is_pumpfun,
+                    image: token_drop_image
+                };
+
+                feed_token_drops_arc.lock().await.push(feed_token_drop.clone());
+                let feed_token_drops = feed_token_drops_arc.lock().await.clone();
+
+                let mut unique_feed_token_drops = get_unique_token_drops(feed_token_drops).await;
+                unique_feed_token_drops.reverse();
+
+                let the_model : Rc<VecModel<SlintFeedTokenDrop>> = Rc::new(VecModel::from(unique_feed_token_drops));
                 let the_model_rc = ModelRc::from(the_model.clone());
-                weak_app.set_token_drops(the_model_rc);
+                weak_app.set_feed_token_drops(the_model_rc);
             }
         });
 
@@ -256,7 +379,7 @@ impl PumpFunWatcher{
     }
 }
 
-pub async fn get_unique_token_drops(token_drops: Vec<SlintTokenDrop>) -> Vec<SlintTokenDrop> {
+pub async fn get_unique_token_drops(token_drops: Vec<SlintFeedTokenDrop>) -> Vec<SlintFeedTokenDrop> {
 
     let mut seen:Vec<String> = Vec::new();
     let mut unique_token_drops = Vec::new();
@@ -310,13 +433,8 @@ async fn process_message(
 #[tokio::main]
 async fn main() {
     // let rpc_endpoint = "https://shy-delicate-diagram.solana-mainnet.quiknode.pro/6b981c085b0c5b05322894ed43bd9dd2e9fccac4/".to_string();
-    // // let rpc_endpoint_wss = env_var("RPC_ENDPOINT_WSS");
-    // let rpc_endpoint_wss = "wss://shy-delicate-diagram.solana-mainnet.quiknode.pro/6b981c085b0c5b05322894ed43bd9dd2e9fccac4/".to_string();
     // let new_client = Client::new();
-    //
-    //
     // let http_sender = HttpSender::new_with_client(rpc_endpoint, new_client);
-    //
     // let sig = Signature::from_str("23MEk1swWhJXSsqfHYXFMJR2xKQhzMwVhvA1GjBKF1UVoFQByw33Eb2fbCtsRpz4qNuDxsKb2Wx6trcbmiKJgxH1");
     // fetch_raydium_accounts(&sig.unwrap(), &http_sender).await;
 
