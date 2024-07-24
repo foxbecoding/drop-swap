@@ -13,7 +13,21 @@ export struct TokenDrop {
     name: string,
     symbol: string,
     uri: string,
-    is_pumpfun: bool
+    is_pumpfun: bool,
+}
+
+export struct FeedTokenDrop {
+    mint: string,
+    solscan: string,
+    dexscreener: string,
+    birdeye: string,
+    raydium: string,
+    jupiter: string,
+    name: string,
+    symbol: string,
+    uri: string,
+    is_pumpfun: bool,
+    image: image
 }
 
 export component App inherits Window {
@@ -36,44 +50,45 @@ export component App inherits Window {
 
 
     in-out property <[TokenDrop]> token_drops;
-    in-out property <[TokenDrop]> drops: [
-        {
-            mint: "mint1",
-            solscan: "string",
-            dexscreener: "string",
-            birdeye: "string",
-            raydium: "https://raydium.io/swap/?inputMint=sol&outputMint=DQPq9oRZm5tRRQKU7nGNd5kngDgr1RdaWVeFjafypump",
-            jupiter: "string",
-            name: "Wrapped Sol",
-            symbol: "WSOL",
-            uri: "string",
-            is_pumpfun: true
-        },
-        {
-            mint: "min2t",
-            solscan: "string",
-            dexscreener: "string",
-            birdeye: "string",
-            raydium: "https://raydium.io/swap/?inputMint=sol&outputMint=DQPq9oRZm5tRRQKU7nGNd5kngDgr1RdaWVeFjafypump",
-            jupiter: "string",
-            name: "Wrapped Sol",
-            symbol: "WSOL",
-            uri: "string",
-            is_pumpfun: false
-        },
-        {
-            mint: "mint3",
-            solscan: "string",
-            dexscreener: "string",
-            birdeye: "string",
-            raydium: "https://raydium.io/swap/?inputMint=sol&outputMint=DQPq9oRZm5tRRQKU7nGNd5kngDgr1RdaWVeFjafypump",
-            jupiter: "string",
-            name: "Wrapped Sol",
-            symbol: "WSOL",
-            uri: "string",
-            is_pumpfun: false
-        },
-    ];
+    in-out property <[FeedTokenDrop]> feed_token_drops;
+//    in-out property <[TokenDrop]> drops: [
+//        {
+//            mint: "mint1",
+//            solscan: "string",
+//            dexscreener: "string",
+//            birdeye: "string",
+//            raydium: "https://raydium.io/swap/?inputMint=sol&outputMint=DQPq9oRZm5tRRQKU7nGNd5kngDgr1RdaWVeFjafypump",
+//            jupiter: "string",
+//            name: "Wrapped Sol",
+//            symbol: "WSOL",
+//            uri: "string",
+//            is_pumpfun: true
+//        },
+//        {
+//            mint: "min2t",
+//            solscan: "string",
+//            dexscreener: "string",
+//            birdeye: "string",
+//            raydium: "https://raydium.io/swap/?inputMint=sol&outputMint=DQPq9oRZm5tRRQKU7nGNd5kngDgr1RdaWVeFjafypump",
+//            jupiter: "string",
+//            name: "Wrapped Sol",
+//            symbol: "WSOL",
+//            uri: "string",
+//            is_pumpfun: false
+//        },
+//        {
+//            mint: "mint3",
+//            solscan: "string",
+//            dexscreener: "string",
+//            birdeye: "string",
+//            raydium: "https://raydium.io/swap/?inputMint=sol&outputMint=DQPq9oRZm5tRRQKU7nGNd5kngDgr1RdaWVeFjafypump",
+//            jupiter: "string",
+//            name: "Wrapped Sol",
+//            symbol: "WSOL",
+//            uri: "string",
+//            is_pumpfun: false
+//        },
+//    ];
 
 
 
@@ -107,17 +122,17 @@ export component App inherits Window {
                             font-weight: 800;
                             font-size: 27px;
                         }
-                        Rectangle {
-                            background: @radial-gradient(circle, rgba(0,120,215,1) 0%, rgba(0,120,215,0) 100%);
-                            width: 20px * abs(sin(360deg * animation-tick() / 6s));
-                            height: 20px * abs(sin(360deg * animation-tick() / 6s));
-                            y: 10px;
-                        }
+//                        Rectangle {
+//                            background: @radial-gradient(circle, rgba(0,120,215,1) 0%, rgba(0,120,215,0) 100%);
+//                            width: 20px * abs(sin(360deg * animation-tick() / 6s));
+//                            height: 20px * abs(sin(360deg * animation-tick() / 6s));
+//                            y: 10px;
+//                        }
                     }
                 }
             }
 
-            for token[index] in token_drops: Rectangle {
+            for token[index] in feed_token_drops: Rectangle {
                height: 390px;
                width: 600px;
                background: AppTheme.surface;
@@ -137,6 +152,18 @@ export component App inherits Window {
 
                    VerticalLayout {
                        HorizontalBox {
+                            Rectangle {
+                               border-radius: 9px;
+                               width: 30px;
+                               height: 30px;
+                               clip: true;
+                               Image {
+                                   vertical-alignment: center;
+                                   source: token.image;
+                                   image-fit: cover;
+                                   width: 30px;
+                               }
+                           }
                             Text {
                                font-size: 20px;
                                font-weight: 800;
